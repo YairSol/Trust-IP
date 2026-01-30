@@ -5,10 +5,12 @@ from collections import Counter
 import folium
 from streamlit_folium import st_folium
 import concurrent.futures
-import ipaddress  
+import ipaddress
 
+# --- PAGE CONFIG ---
 st.set_page_config(page_title="Trust-IP Intelligence", page_icon="🛡️", layout="wide")
 
+# --- CUSTOM CSS ---
 st.markdown("""
 <style>
     h1, h2, h3 { font-family: 'Courier New', monospace; font-weight: bold; }
@@ -21,22 +23,35 @@ st.markdown("""
     }
     .block-container { padding-top: 3.5rem; }
     
+    /* עיצוב כפתור */
     div.stButton > button { border-radius: 8px; font-weight: bold; width: 100%; }
     
+    /* --- העלמה טוטאלית של מסגרת הטופס --- */
+    [data-testid="stForm"] {
+        border: 0px none !important;
+        padding: 0px !important;
+        box-shadow: none !important;
+        background-color: transparent !important;
+    }
+    
+    /* --- העלמת הטקסט "Press Enter..." --- */
     [data-testid="InputInstructions"] {
         display: none !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
+# --- API KEYS (Cloud Setup) ---
 try:
     VT_API_KEY = st.secrets["VT_API_KEY"]
     ABUSE_API_KEY = st.secrets["ABUSE_API_KEY"]
     OTX_API_KEY = st.secrets["OTX_API_KEY"]
     PROXYCHECK_API_KEY = st.secrets["PROXYCHECK_API_KEY"]
-except FileNotFoundError:
-    st.error("⚠️ Secrets file not found! Please configure .streamlit/secrets.toml")
+except Exception:
+    st.error("⚠️ API Keys missing! Please configure them in Streamlit Cloud Secrets.")
     st.stop()
+
+# --- HELPER FUNCTIONS ---
 
 def validate_ip_address(ip):
     try:
@@ -53,37 +68,33 @@ def get_flag_emoji(country_code):
     if not country_code or len(country_code) != 2: return "🌐"
     return "".join(chr(127397 + ord(c.upper())) for c in country_code)
 
+# --- API CLIENT FUNCTIONS ---
 
 def get_vt_data(ip):
-    if not VT_API_KEY or 'YOUR_' in VT_API_KEY: return {}
     url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip}"
     headers = {"x-apikey": VT_API_KEY}
     try: return requests.get(url, headers=headers).json().get('data', {}).get('attributes', {})
     except: return {}
 
 def get_vt_resolutions(ip):
-    if not VT_API_KEY or 'YOUR_' in VT_API_KEY: return []
     url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip}/resolutions?limit=10"
     headers = {"x-apikey": VT_API_KEY}
     try: return requests.get(url, headers=headers).json().get('data', [])
     except: return []
 
 def get_vt_communicating_files(ip):
-    if not VT_API_KEY or 'YOUR_' in VT_API_KEY: return []
     url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip}/communicating_files?limit=10"
     headers = {"x-apikey": VT_API_KEY}
     try: return requests.get(url, headers=headers).json().get('data', [])
     except: return []
 
 def get_vt_referrers(ip):
-    if not VT_API_KEY or 'YOUR_' in VT_API_KEY: return []
     url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip}/referrer_files?limit=10"
     headers = {"x-apikey": VT_API_KEY}
     try: return requests.get(url, headers=headers).json().get('data', [])
     except: return []
 
 def get_abuse_data(ip):
-    if not ABUSE_API_KEY or 'YOUR_' in ABUSE_API_KEY: return {}
     url = 'https://api.abuseipdb.com/api/v2/check'
     params = {'ipAddress': ip, 'maxAgeInDays': '90', 'verbose': True}
     headers = {'Accept': 'application/json', 'Key': ABUSE_API_KEY}
@@ -99,18 +110,18 @@ def get_proxycheck_data(ip):
     return {}
 
 def get_otx_data(ip):
-    if not OTX_API_KEY or 'YOUR_' in OTX_API_KEY: return {}
     url = f"https://otx.alienvault.com/api/v1/indicators/IPv4/{ip}/general"
     headers = {"X-OTX-API-KEY": OTX_API_KEY}
     try: return requests.get(url, headers=headers, timeout=5).json()
     except: return {}
 
+# --- SIDEBAR ---
 with st.sidebar:
     st.title("🛡️ Trust-IP Intelligence")
     st.markdown("---")
     
     with st.form(key='search_form'):
-        ip_input_raw = st.text_input("Target IP Address:", placeholder="167.71.5.161")
+        ip_input_raw = st.text_input("Enter IP Address:", placeholder="167.71.5.161")
         submit_btn = st.form_submit_button(label="🚀 Analyze IP", type="primary", use_container_width=True)
     
     ip_input = ip_input_raw.strip()
@@ -134,8 +145,6 @@ if submit_btn:
         else:
             with st.status("🚀 Launching Investigation Probes...", expanded=True) as status:
                 
-                if 'YOUR_' in VT_API_KEY: st.warning("⚠️ API Keys are missing in code!")
-
                 st.write("⚡ Querying Reputation & Passive DNS...")
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future_vt = executor.submit(get_vt_data, ip_input)
@@ -145,7 +154,7 @@ if submit_btn:
                     
                     future_abuse = executor.submit(get_abuse_data, ip_input)
                     future_proxy = executor.submit(get_proxycheck_data, ip_input)
-                    future_otx = executor.submit(get_otx_data, ip_input)
+                    future_otx = executor.submit(get_otx_data, ip_input) 
                     
                     vt_res = future_vt.result()
                     vt_resolutions = future_vt_res.result()
@@ -155,7 +164,7 @@ if submit_btn:
                     st.write("🌍 Geolocating & Checking Threat Intel...")
                     abuse_res = future_abuse.result()
                     proxy_res = future_proxy.result()
-                    otx_res = future_otx.result()
+                    otx_res = future_otx.result() 
 
                 st.session_state['results'] = {
                     'ip': ip_input,
@@ -165,7 +174,7 @@ if submit_btn:
                     'vt_ref': vt_referrers,
                     'abuse': abuse_res,
                     'proxy': proxy_res,
-                    'otx': otx_res
+                    'otx': otx_res 
                 }
                 
                 status.update(label="✅ Investigation Complete!", state="complete", expanded=False)
@@ -176,7 +185,7 @@ if st.session_state['results']:
     vt = res['vt']
     abuse = res['abuse']
     proxy_data = res['proxy']
-    otx = res['otx']
+    otx = res['otx'] 
     current_ip = res['ip']
 
     # --- TOP METRICS ---
@@ -215,7 +224,7 @@ if st.session_state['results']:
             with tab1:
                 malicious_engines = [e for e, r in vt.get('last_analysis_results', {}).items() if r['category'] == 'malicious']
                 if malicious_engines:
-                    st.error(f"⚠️ Flagged by {len(malicious_engines)} vendors")
+                    st.error(f"⚠️ Flagged malicious by {len(malicious_engines)} vendors")
                     st.markdown(", ".join([f"`{e}`" for e in malicious_engines[:12]]))
                 else:
                     st.success("✅ Clean across all major security vendors")
@@ -302,19 +311,17 @@ if st.session_state['results']:
             st.divider()
             abuse_report = f"""DB Results:
 Target IP: {current_ip}
-Abuse Score: {abuse_score}%
+Score: {abuse_score}%
 Total Reports: {abuse.get('totalReports', 0)}
 ISP: {abuse.get('isp', 'N/A')}
 Usage Type: {abuse.get('usageType', 'N/A')}
 Domain: {abuse.get('domain', 'N/A')}"""
-
             st.code(abuse_report, language='text')
         else:
             st.warning("No Data from AbuseIPDB")
 
-    # --- OTX ---
     st.markdown("---")
-    st.subheader("🧠 Threat Intel (OTX)")
+    st.subheader("🧠 Threat Intelligence")
     if otx and otx.get('pulse_info', {}).get('count', 0) > 0:
         pulses = otx.get('pulse_info', {}).get('pulses', [])
         all_tags = [tag for p in pulses for tag in p.get('tags', [])]
@@ -322,7 +329,7 @@ Domain: {abuse.get('domain', 'N/A')}"""
             top_tags = [tag for tag, c in Counter(all_tags).most_common(8)]
             st.markdown(" ".join([f"<span style='background-color:#333; padding:4px 8px; border-radius:4px; margin-right:5px;'>{tag}</span>" for tag in top_tags]), unsafe_allow_html=True)
     else:
-        st.info("No OTX Data")
+        st.info("No threat intelligence data available")
 
     # --- SECTION 3: SMART CONNECTIVITY & GEO-LOCATION ---
     st.markdown("---")
@@ -352,16 +359,13 @@ Domain: {abuse.get('domain', 'N/A')}"""
     ]
     is_known_vpn_brand = any(brand.lower() in str(clean_company).lower() for brand in vpn_brands)
 
-
     pc_proxy = proxy_data.get('proxy') == 'yes'
     raw_type = proxy_data.get('type') or 'N/A'
     abuse_usage = abuse.get('usageType') or ''
 
-  
     final_status = "Clean / Residential"
     status_type = "success"
     
-
     display_type_text = raw_type 
 
     if pc_proxy:
@@ -376,21 +380,20 @@ Domain: {abuse.get('domain', 'N/A')}"""
         else:
              display_type_text = "VPN / Proxy"
 
-
     if is_big_tech:
         final_status = f"Cloud Infrastructure ({clean_company})"
-        status_type = "info" # blue
+        status_type = "info" 
         display_type_text = "Cloud / Business"
         
     elif pc_proxy:
         final_status = f"{display_type_text}"
-        status_type = "error" # red
+        status_type = "error" 
         
     elif 'Data Center' in abuse_usage or 'Web Hosting' in abuse_usage:
         final_status = "Data Center Traffic"
-        status_type = "warning" # orange
+        status_type = "warning" 
 
-    # תצוגה
+    
     if status_type == "error": st.error(f"**Status:** {final_status}")
     elif status_type == "warning": st.warning(f"**Status:** {final_status}")
     elif status_type == "info": st.info(f"**Status:** {final_status}")
@@ -409,6 +412,5 @@ Domain: {abuse.get('domain', 'N/A')}"""
                 st_folium(m, height=250, use_container_width=True)
             except: st.error("Map Error")
 
-    with st.expander("🐞 Show Raw API Data (ProxyCheck)"):
+    with st.expander("🐞 Raw API Data"):
         st.json(proxy_data)
-
