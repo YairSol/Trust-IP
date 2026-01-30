@@ -7,8 +7,7 @@ from streamlit_folium import st_folium
 import concurrent.futures
 import ipaddress  
 
-st.set_page_config(page_title="SOC Intelligence Pro", page_icon="🛡️", layout="wide")
-
+st.set_page_config(page_title="Trust-IP Intelligence", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -112,7 +111,7 @@ def get_otx_data(ip):
     except: return {}
 
 with st.sidebar:
-    st.title("🛡️ SOC Intel Pro")
+    st.title("🛡️ Trust-IP Intelligence")
     st.markdown("---")
     
     with st.form(key='search_form'):
