@@ -21,12 +21,8 @@ st.markdown("""
     }
     .block-container { padding-top: 3.5rem; }
     
-    /* עיצוב כפתור */
     div.stButton > button { border-radius: 8px; font-weight: bold; width: 100%; }
     
-    /* הורדתי את הקוד שהעלים את המסגרת, עכשיו היא תחזור */
-    
-    /* --- העלמת הטקסט "Press Enter to submit form" בלבד --- */
     [data-testid="InputInstructions"] {
         display: none !important;
     }
@@ -43,7 +39,6 @@ except FileNotFoundError:
     st.stop()
 
 def validate_ip_address(ip):
-    """בדיקה האם הכתובת תקינה והאם היא ציבורית"""
     try:
         ip_obj = ipaddress.ip_address(ip)
         if ip_obj.is_private:
@@ -333,7 +328,6 @@ Domain: {abuse.get('domain', 'N/A')}"""
     st.markdown("---")
     st.subheader("🕵️ Connectivity & Geo-Location")
     
-    # 1. ניקוי שם הספק
     raw_op = proxy_data.get('operator')
     if isinstance(raw_op, dict):
         clean_company = raw_op.get('name', 'Unknown')
@@ -417,3 +411,4 @@ Domain: {abuse.get('domain', 'N/A')}"""
 
     with st.expander("🐞 Show Raw API Data (ProxyCheck)"):
         st.json(proxy_data)
+
