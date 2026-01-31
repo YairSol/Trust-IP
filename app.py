@@ -123,7 +123,7 @@ with st.sidebar:
     st.markdown("---")
     
     with st.form(key='search_form'):
-        ip_input_raw = st.text_input("Target IP Address:", placeholder="167.71.5.161")
+        ip_input_raw = st.text_input("Enter IP Address:", placeholder="167.71.5.161")
         submit_btn = st.form_submit_button(label="🚀 Analyze IP", type="primary", use_container_width=True)
     
     ip_input = ip_input_raw.strip()
@@ -431,5 +431,6 @@ else:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
 
 
