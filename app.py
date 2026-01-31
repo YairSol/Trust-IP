@@ -23,10 +23,8 @@ st.markdown("""
     }
     .block-container { padding-top: 3.5rem; }
     
-    /* עיצוב כפתור */
     div.stButton > button { border-radius: 8px; font-weight: bold; width: 100%; }
     
-    /* --- העלמה טוטאלית של מסגרת הטופס --- */
     [data-testid="stForm"] {
         border: 0px none !important;
         padding: 0px !important;
@@ -34,7 +32,6 @@ st.markdown("""
         background-color: transparent !important;
     }
     
-    /* --- העלמת הטקסט "Press Enter..." --- */
     [data-testid="InputInstructions"] {
         display: none !important;
     }
@@ -414,3 +411,4 @@ Domain: {abuse.get('domain', 'N/A')}"""
 
     with st.expander("🐞 Raw API Data"):
         st.json(proxy_data)
+
