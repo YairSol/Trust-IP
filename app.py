@@ -226,7 +226,7 @@ if st.session_state['results']:
             with tab1:
                 malicious_engines = [e for e, r in vt.get('last_analysis_results', {}).items() if r['category'] == 'malicious']
                 if malicious_engines:
-                    st.error(f"⚠️ Flagged by {len(malicious_engines)} vendors")
+                    st.error(f"⚠️ Flagged malicious by {len(malicious_engines)} vendors")
                     st.markdown(", ".join([f"`{e}`" for e in malicious_engines[:12]]))
                 else:
                     st.success("✅ Clean across all major security vendors")
@@ -324,7 +324,7 @@ Domain: {abuse.get('domain', 'N/A')}"""
 
     # --- OTX ---
     st.markdown("---")
-    st.subheader("🧠 Threat Intel (OTX)")
+    st.subheader("🧠 Threat Intel")
     if otx and otx.get('pulse_info', {}).get('count', 0) > 0:
         pulses = otx.get('pulse_info', {}).get('pulses', [])
         all_tags = [tag for p in pulses for tag in p.get('tags', [])]
@@ -431,4 +431,5 @@ else:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
 
