@@ -332,7 +332,7 @@ Domain: {abuse.get('domain', 'N/A')}"""
             top_tags = [tag for tag, c in Counter(all_tags).most_common(8)]
             st.markdown(" ".join([f"<span style='background-color:#333; padding:4px 8px; border-radius:4px; margin-right:5px;'>{tag}</span>" for tag in top_tags]), unsafe_allow_html=True)
     else:
-        st.info("No OTX Data")
+        st.info("No threat intelligence data available")
 
     # --- SECTION 3: SMART CONNECTIVITY & GEO-LOCATION ---
     st.markdown("---")
@@ -414,7 +414,7 @@ Domain: {abuse.get('domain', 'N/A')}"""
                 st_folium(m, height=250, use_container_width=True)
             except: st.error("Map Error")
 
-    with st.expander("🐞 Show Raw API Data (ProxyCheck)"):
+    with st.expander("🐞 Raw API Data"):
         st.json(proxy_data)
 
 else:
@@ -431,3 +431,4 @@ else:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
