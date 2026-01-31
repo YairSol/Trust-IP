@@ -8,7 +8,12 @@ import concurrent.futures
 import ipaddress
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="Trust-IP Intelligence", page_icon="🛡️", layout="wide")
+st.set_page_config(
+    page_title="Trust-IP Intelligence", 
+    page_icon="🛡️", 
+    layout="wide",
+    initial_sidebar_state="expanded" 
+)
 
 # --- CUSTOM CSS ---
 st.markdown("""
@@ -38,7 +43,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- API KEYS (Cloud Setup) ---
+# --- API KEYS ---
 try:
     VT_API_KEY = st.secrets["VT_API_KEY"]
     ABUSE_API_KEY = st.secrets["ABUSE_API_KEY"]
@@ -118,7 +123,7 @@ with st.sidebar:
     st.markdown("---")
     
     with st.form(key='search_form'):
-        ip_input_raw = st.text_input("Enter IP Address:", placeholder="167.71.5.161")
+        ip_input_raw = st.text_input("Target IP Address:", placeholder="167.71.5.161")
         submit_btn = st.form_submit_button(label="🚀 Analyze IP", type="primary", use_container_width=True)
     
     ip_input = ip_input_raw.strip()
@@ -151,7 +156,7 @@ if submit_btn:
                     
                     future_abuse = executor.submit(get_abuse_data, ip_input)
                     future_proxy = executor.submit(get_proxycheck_data, ip_input)
-                    future_otx = executor.submit(get_otx_data, ip_input) 
+                    future_otx = executor.submit(get_otx_data, ip_input)
                     
                     vt_res = future_vt.result()
                     vt_resolutions = future_vt_res.result()
@@ -161,7 +166,7 @@ if submit_btn:
                     st.write("🌍 Geolocating & Checking Threat Intel...")
                     abuse_res = future_abuse.result()
                     proxy_res = future_proxy.result()
-                    otx_res = future_otx.result() 
+                    otx_res = future_otx.result()
 
                 st.session_state['results'] = {
                     'ip': ip_input,
@@ -171,18 +176,18 @@ if submit_btn:
                     'vt_ref': vt_referrers,
                     'abuse': abuse_res,
                     'proxy': proxy_res,
-                    'otx': otx_res 
+                    'otx': otx_res
                 }
                 
                 status.update(label="✅ Investigation Complete!", state="complete", expanded=False)
 
-# --- DASHBOARD ---
+# --- DASHBOARD OR WELCOME SCREEN ---
 if st.session_state['results']:
     res = st.session_state['results']
     vt = res['vt']
     abuse = res['abuse']
     proxy_data = res['proxy']
-    otx = res['otx'] 
+    otx = res['otx']
     current_ip = res['ip']
 
     # --- TOP METRICS ---
@@ -221,7 +226,7 @@ if st.session_state['results']:
             with tab1:
                 malicious_engines = [e for e, r in vt.get('last_analysis_results', {}).items() if r['category'] == 'malicious']
                 if malicious_engines:
-                    st.error(f"⚠️ Flagged malicious by {len(malicious_engines)} vendors")
+                    st.error(f"⚠️ Flagged by {len(malicious_engines)} vendors")
                     st.markdown(", ".join([f"`{e}`" for e in malicious_engines[:12]]))
                 else:
                     st.success("✅ Clean across all major security vendors")
@@ -317,8 +322,9 @@ Domain: {abuse.get('domain', 'N/A')}"""
         else:
             st.warning("No Data from AbuseIPDB")
 
+    # --- OTX ---
     st.markdown("---")
-    st.subheader("🧠 Threat Intelligence")
+    st.subheader("🧠 Threat Intel (OTX)")
     if otx and otx.get('pulse_info', {}).get('count', 0) > 0:
         pulses = otx.get('pulse_info', {}).get('pulses', [])
         all_tags = [tag for p in pulses for tag in p.get('tags', [])]
@@ -326,7 +332,7 @@ Domain: {abuse.get('domain', 'N/A')}"""
             top_tags = [tag for tag, c in Counter(all_tags).most_common(8)]
             st.markdown(" ".join([f"<span style='background-color:#333; padding:4px 8px; border-radius:4px; margin-right:5px;'>{tag}</span>" for tag in top_tags]), unsafe_allow_html=True)
     else:
-        st.info("No threat intelligence data available")
+        st.info("No OTX Data")
 
     # --- SECTION 3: SMART CONNECTIVITY & GEO-LOCATION ---
     st.markdown("---")
@@ -390,7 +396,6 @@ Domain: {abuse.get('domain', 'N/A')}"""
         final_status = "Data Center Traffic"
         status_type = "warning" 
 
-    
     if status_type == "error": st.error(f"**Status:** {final_status}")
     elif status_type == "warning": st.warning(f"**Status:** {final_status}")
     elif status_type == "info": st.info(f"**Status:** {final_status}")
@@ -409,6 +414,20 @@ Domain: {abuse.get('domain', 'N/A')}"""
                 st_folium(m, height=250, use_container_width=True)
             except: st.error("Map Error")
 
-    with st.expander("🐞 Raw API Data"):
+    with st.expander("🐞 Show Raw API Data (ProxyCheck)"):
         st.json(proxy_data)
 
+else:
+    st.markdown("""
+    <div style='text-align: center; padding-top: 50px;'>
+        <h1 style='font-size: 60px;'>🛡️</h1>
+        <h1>Trust-IP Intelligence</h1>
+        <br>
+        <div style='background-color: #262730; padding: 20px; border-radius: 10px; border: 1px solid #4F4F4F; display: inline-block; text-align: left;'>
+            <h3>🚀 How to start?</h3>
+            <p>1. Enter an <b>IP Address</b> in the sidebar on the left.</p>
+            <p>2. Hit <b>ENTER</b> or click <b>Analyze IP</b>.</p>
+            <p>3. Get real-time intelligence from multiple global threat feeds.</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
