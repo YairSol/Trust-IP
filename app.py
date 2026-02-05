@@ -304,20 +304,27 @@ if st.session_state['results']:
                 reports = abuse.get('reports', [])
                 if reports:
                     for r in reports[:3]:
-                        st.caption(f"📅 {r['reportedAt'][:10]}")
-                        st.text(r['comment'])
-                        st.divider()
+                        st.caption(f"📅 {r.get('reportedAt', '')[:10]}")
+                        st.text(r.get('comment', 'No comment'))
+                        st.markdown("---")
                 else:
                     st.write("No community reports available.")
             
-            st.divider()
+            st.markdown("---")
+            
+            # --- UPDATED SECTION WITH COUNTRY ---
+            # Safe retrieval of country name
+            c_name = abuse.get('countryName') or 'N/A'
+            
             abuse_report = f"""DB Results:
 Target IP: {current_ip}
 Score: {abuse_score}%
 Total Reports: {abuse.get('totalReports', 0)}
+Country: {c_name}
 ISP: {abuse.get('isp', 'N/A')}
 Usage Type: {abuse.get('usageType', 'N/A')}
 Domain: {abuse.get('domain', 'N/A')}"""
+
             st.code(abuse_report, language='text')
         else:
             st.warning("No Data from AbuseIPDB")
@@ -431,6 +438,3 @@ else:
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-
-
