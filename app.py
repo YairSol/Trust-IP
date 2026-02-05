@@ -314,10 +314,9 @@ if st.session_state['results']:
             c_name = abuse.get('countryName') or 'N/A'
             
             abuse_report = f"""DB Results:
-Target IP: {current_ip}
+IP: {current_ip}
 Abuse Score: {abuse_score}%
 Total Reports: {abuse.get('totalReports', 0)}
-Country: {c_name}
 ISP: {abuse.get('isp', 'N/A')}
 Usage Type: {abuse.get('usageType', 'N/A')}
 Domain: {abuse.get('domain', 'N/A')}
@@ -436,4 +435,5 @@ else:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
 
