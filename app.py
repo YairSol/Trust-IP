@@ -311,19 +311,17 @@ if st.session_state['results']:
                     st.write("No community reports available.")
             
             st.markdown("---")
-            
-            # --- UPDATED SECTION WITH COUNTRY ---
-            # Safe retrieval of country name
             c_name = abuse.get('countryName') or 'N/A'
             
             abuse_report = f"""DB Results:
 Target IP: {current_ip}
-Score: {abuse_score}%
+Abuse Score: {abuse_score}%
 Total Reports: {abuse.get('totalReports', 0)}
 Country: {c_name}
 ISP: {abuse.get('isp', 'N/A')}
 Usage Type: {abuse.get('usageType', 'N/A')}
-Domain: {abuse.get('domain', 'N/A')}"""
+Domain: {abuse.get('domain', 'N/A')}
+Country: {c_name}"""
 
             st.code(abuse_report, language='text')
         else:
@@ -438,3 +436,4 @@ else:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
