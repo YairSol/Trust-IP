@@ -548,7 +548,6 @@ Country: {c_name}"""
             if country in COUNTRY_DEFAULTS:
                 lat, lon = COUNTRY_DEFAULTS[country]
                 zoom_level = 3 
-                st.caption(f"📍 Using general location for {country}")
 
         if lat is not None and lon is not None:
             try:
@@ -617,3 +616,4 @@ Get real-time intelligence from multiple global threat feeds.
 </div>
 </div>
 """, unsafe_allow_html=True)
+
