@@ -322,7 +322,6 @@ if st.session_state['results']:
         st.subheader("⚠️ AbuseIPDB Intelligence")
         if abuse:
             c_name = abuse.get('countryName') or 'N/A'
-            city_name = vpn_data.get('location', {}).get('city') or 'Unknown'
             
             abuse_report = f"""DB Results:
 IP: {current_ip}
@@ -332,7 +331,7 @@ ISP: {abuse.get('isp', 'N/A')}
 Usage Type: {abuse.get('usageType', 'N/A')}
 Domain: {abuse.get('domain', 'N/A')}
 Country: {c_name}
-City: {city_name}"""
+"""
 
             st.code(abuse_report, language='text')
             st.markdown("---")
@@ -460,3 +459,4 @@ else:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
