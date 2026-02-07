@@ -280,15 +280,16 @@ if st.session_state['results']:
     otx = res['otx']
     current_ip = res['ip']
 
-    # --- TOP METRICS ---
+
     st.header(f"🔎 Analysis Report: {current_ip}")
     
     vt_score = vt.get('last_analysis_stats', {}).get('malicious', 0)
     abuse_score = abuse.get('abuseConfidenceScore', 0)
     
     location_data = vpn_data.get('location', {})
-    
+
     country = abuse.get('countryName') or location_data.get('country', 'Unknown')
+    
     country_code = abuse.get('countryCode') or location_data.get('country_code')
     flag = get_flag_emoji(country_code)
     
@@ -515,16 +516,55 @@ Country: {c_name}"""
     with c2: st.write(f"📡 **Type:** {display_type_text}")
     
     with c3:
-        lat, lon = location.get('latitude'), location.get('longitude')
+
+        def parse_coord(c):
+            try:
+                if c is None or str(c).strip() == '': return None
+                return float(c)
+            except (ValueError, TypeError):
+                return None
+
+        COUNTRY_DEFAULTS = {
+            "United States": [37.0902, -95.7129],
+            "Australia": [-25.2744, 133.7751],
+            "China": [35.8617, 104.1954],
+            "Russia": [61.5240, 105.3188],
+            "India": [20.5937, 78.9629],
+            "Brazil": [-14.2350, -51.9253],
+            "United Kingdom": [55.3781, -3.4360],
+            "Germany": [51.1657, 10.4515],
+            "France": [46.2276, 2.2137],
+            "Israel": [31.0461, 34.8516],
+            "Japan": [36.2048, 138.2529],
+            "Canada": [56.1304, -106.3468]
+        }
+
+        lat = parse_coord(location_data.get('latitude'))
+        lon = parse_coord(location_data.get('longitude'))
+        
+        zoom_level = 9 
+
+        if lat is None or lon is None:
+            if country in COUNTRY_DEFAULTS:
+                lat, lon = COUNTRY_DEFAULTS[country]
+                zoom_level = 3 
+                st.caption(f"📍 Using general location for {country}")
+
         if lat is not None and lon is not None:
             try:
-                m = folium.Map(location=[float(lat), float(lon)], zoom_start=9, tiles="CartoDB dark_matter")
-                folium.Marker([float(lat), float(lon)], icon=folium.Icon(color="red", icon="crosshairs", prefix='fa')).add_to(m)
+                m = folium.Map(location=[lat, lon], zoom_start=zoom_level, tiles="CartoDB dark_matter")
+                
+                folium.Marker(
+                    [lat, lon], 
+                    icon=folium.Icon(color="blue", icon="info-sign"),
+                    tooltip=f"{country} ({current_ip})"
+                ).add_to(m)
+                
                 st_folium(m, height=250, use_container_width=True)
-            except Exception as e:
-                st.error(f"Map Error: {e}")
+            except Exception:
+                st.warning("⚠️ Map render failed")
         else:
-            st.info("📍 No geolocation data available.")
+            st.info(f"🌐 Map coordinates unavailable for {country}")
 
     with st.expander("🐞 Raw API Data"):
         st.json(vpn_data)
@@ -532,6 +572,7 @@ Country: {c_name}"""
 else:
     st.markdown("""
 <style>
+
 [data-testid="stAppViewContainer"] {
     background-image: linear-gradient(rgba(14, 17, 23, 0.85), rgba(14, 17, 23, 0.85)), url("https://vpnapi.io/assets/img/map.svg");
     background-size: cover;
@@ -544,6 +585,7 @@ else:
 [data-testid="stHeader"] {
     background-color: rgba(0,0,0,0);
 }
+
 .info-box {
     background-color: rgba(14, 17, 23, 0.9);
     padding: 30px;
@@ -575,4 +617,3 @@ Get real-time intelligence from multiple global threat feeds.
 </div>
 </div>
 """, unsafe_allow_html=True)
-
