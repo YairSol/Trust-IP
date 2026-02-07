@@ -531,7 +531,7 @@ else:
     st.markdown("""
 <style>
 [data-testid="stAppViewContainer"] {
-    background-image: linear-gradient(rgba(14, 17, 23, 0.95), rgba(14, 17, 23, 0.95)), url("https://vpnapi.io/assets/img/map.svg");
+    background-image: linear-gradient(rgba(14, 17, 23, 0.85), rgba(14, 17, 23, 0.85)), url("https://vpnapi.io/assets/img/map.svg");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -542,7 +542,6 @@ else:
 [data-testid="stHeader"] {
     background-color: rgba(0,0,0,0);
 }
-
 .info-box {
     background-color: rgba(14, 17, 23, 0.9);
     padding: 30px;
