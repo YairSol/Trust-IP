@@ -18,115 +18,39 @@ st.set_page_config(
 # --- CUSTOM CSS ---
 st.markdown("""
 <style>
-    html, body, [class*="css"] {
-        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
-    }
-    
-    /* --- SIDEBAR --- */
-    [data-testid="stSidebar"] {
-        background-color: #0e1117;
-        border-right: 1px solid #333;
-    }
-    
-    [data-testid="stSidebar"] button {
-        background: transparent !important;
-        border: none !important;
-        color: #ffffff !important;
-        font-size: 42px !important;
-        font-weight: 800 !important;
-        text-align: left !important;
-        width: 100%;
-        padding: 0px !important;
-        margin-bottom: 30px;
-        line-height: 1.1;
-        text-shadow: 0 0 20px rgba(66, 165, 245, 0.6);
-        transition: transform 0.3s ease;
-    }
-    
-    [data-testid="stSidebar"] button:hover {
-        transform: scale(1.02);
-    }
-
-    div[data-testid="stTextInput"] input {
-        background-color: #0d1117 !important;
-        color: #ffffff !important;
-        border: 1px solid #30363d !important;
-        border-radius: 8px;
-        padding: 12px;
-        font-size: 15px;
-    }
-    
-    div[data-testid="stTextInput"] input:focus {
-        border-color: #4DA6FF !important; 
-        box-shadow: 0 0 10px rgba(77, 166, 255, 0.3) !important;
-        outline: none !important;
-    }
-    
-    [data-testid="InputInstructions"] { display: none !important; }
-    
-    [data-testid="stForm"] button {
-        background-color: transparent !important;
-        color: #4DA6FF !important; 
-        border: 2px solid #4DA6FF !important; 
-        border-radius: 12px;
-        
-        padding: 32px 0; 
-        font-size: 26px;
-        
-        font-weight: 800;
-        width: 100%;
-        margin-top: 30px;
-        text-transform: uppercase !important;
-        letter-spacing: 3px; 
-        transition: all 0.4s ease;
-        
-        box-shadow: 0 0 10px rgba(77, 166, 255, 0.15) !important;
-        text-shadow: 0 0 8px rgba(77, 166, 255, 0.3);
-    }
-    
-    [data-testid="stForm"] button:hover {
-        background-color: rgba(77, 166, 255, 0.1) !important; 
-        color: #ffffff !important; 
-        border-color: #4DA6FF !important;
-        
-        box-shadow: 0 0 25px rgba(77, 166, 255, 0.7) !important;
-        text-shadow: 0 0 15px rgba(77, 166, 255, 0.9);
-        
-        transform: translateY(-4px);
-    }
-    
-    [data-testid="stForm"] button:active {
-        transform: scale(0.98);
-        box-shadow: 0 0 15px rgba(77, 166, 255, 0.5) !important;
-    }
-
+    h1, h2, h3 { font-family: 'Courier New', monospace; font-weight: bold; }
     div[data-testid="stMetric"] {
-        background-color: #161b22;
-        border: 1px solid #30363d;
-        padding: 15px;
-        border-radius: 8px;
+        background-color: #262730;
+        border: 1px solid #4F4F4F;
+        padding: 10px;
+        border-radius: 5px;
         color: white;
     }
+    .block-container { padding-top: 3.5rem; }
+    
+    div.stButton > button { border-radius: 8px; font-weight: bold; width: 100%; }
     
     [data-testid="stForm"] {
         border: 0px none !important;
         padding: 0px !important;
+        box-shadow: none !important;
+        background-color: transparent !important;
+    }
+    
+    [data-testid="InputInstructions"] {
+        display: none !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- API KEYS CHECK ---
+# --- API KEYS ---
 try:
-    VT_API_KEY = st.secrets.get("VT_API_KEY")
-    ABUSE_API_KEY = st.secrets.get("ABUSE_API_KEY")
-    OTX_API_KEY = st.secrets.get("OTX_API_KEY")
-    VPNAPI_KEY = st.secrets.get("VPNAPI_KEY")
-    
-    if not all([VT_API_KEY, ABUSE_API_KEY, OTX_API_KEY]):
-        st.error("⚠️ Core API Keys are missing in secrets.toml")
-        st.stop()
+    VT_API_KEY = st.secrets["VT_API_KEY"]
+    ABUSE_API_KEY = st.secrets["ABUSE_API_KEY"]
+    OTX_API_KEY = st.secrets["OTX_API_KEY"]
+    VPNAPI_KEY = st.secrets["VPNAPI_KEY"] 
 except Exception:
-    st.error("⚠️ Error reading secrets.")
+    st.error("⚠️ API Keys missing! Please configure them in Streamlit Cloud Secrets.")
     st.stop()
 
 # --- HELPER FUNCTIONS ---
@@ -135,18 +59,18 @@ def validate_ip_address(ip):
     try:
         ip_obj = ipaddress.ip_address(ip)
         if ip_obj.is_private:
-            return False, "⚠️ Private/Local IP (LAN)."
+            return False, "⚠️ This is a Private/Local IP (LAN). No external intelligence available."
         if ip_obj.is_loopback:
-            return False, "⚠️ Loopback IP (localhost)."
+            return False, "⚠️ This is a Loopback IP (localhost)."
         return True, ""
     except ValueError:
-        return False, "❌ Invalid IPv4 address."
+        return False, "❌ Invalid IP Address format. Please enter a valid IPv4 address."
 
 def get_flag_emoji(country_code):
     if not country_code or len(country_code) != 2: return "🌐"
     return "".join(chr(127397 + ord(c.upper())) for c in country_code)
 
-# --- API CLIENT FUNCTIONS ---
+# --- API CLIENT FUNCTIONS (WITH CACHING) ---
 
 @st.cache_data(ttl=3600)
 def get_vt_data(ip):
@@ -186,7 +110,6 @@ def get_abuse_data(ip):
 
 @st.cache_data(ttl=3600)
 def get_vpnapi_data(ip):
-    if not VPNAPI_KEY: return {} 
     url = f"https://vpnapi.io/api/{ip}?key={VPNAPI_KEY}"
     try:
         response = requests.get(url, timeout=5)
@@ -202,20 +125,15 @@ def get_otx_data(ip):
     try: return requests.get(url, headers=headers, timeout=5).json()
     except: return {}
 
-# --- SIDEBAR DESIGN ---
+# --- SIDEBAR ---
 with st.sidebar:
-    if st.button("🛡️ Trust-IP Intelligence"):
-        st.session_state['results'] = None
-        st.rerun()
-    
+    st.title("🛡️ Trust-IP Intelligence")
     st.markdown("---")
     
     with st.form(key='search_form'):
-        st.markdown("<div style='margin-bottom: 12px; font-weight: 700; color: #8b949e; font-size: 14px; letter-spacing: 1px;'>ENTER IP ADDRESS:</div>", unsafe_allow_html=True)
-        ip_input_raw = st.text_input("IP Address", placeholder="e.g. 8.8.8.8", label_visibility="collapsed")
-        
-        submit_btn = st.form_submit_button(label="Analyze IP", type="primary", use_container_width=True)
-
+        ip_input_raw = st.text_input("Enter IP Address:", placeholder="167.71.5.161")
+        submit_btn = st.form_submit_button(label="🚀 Analyze IP", type="primary", use_container_width=True)
+    
     ip_input = ip_input_raw.strip()
 
     st.markdown("---")
@@ -228,7 +146,7 @@ if 'results' not in st.session_state:
 
 if submit_btn:
     if not ip_input:
-        st.warning("⚠️ Please enter an IP address.")
+        st.warning("⚠️ Please enter an IP address to begin.")
     else:
         is_valid, error_msg = validate_ip_address(ip_input)
         
@@ -247,6 +165,7 @@ if submit_btn:
                     future_abuse = executor.submit(get_abuse_data, ip_input)
                     future_vpnapi = executor.submit(get_vpnapi_data, ip_input)
                     future_otx = executor.submit(get_otx_data, ip_input)
+                    # הוסר: GreyNoise API Call
 
                     vt_res = future_vt.result()
                     vt_resolutions = future_vt_res.result()
@@ -411,7 +330,8 @@ Total Reports: {abuse.get('totalReports', 0)}
 ISP: {abuse.get('isp', 'N/A')}
 Usage Type: {abuse.get('usageType', 'N/A')}
 Domain: {abuse.get('domain', 'N/A')}
-Country: {c_name}"""
+Country: {c_name}
+"""
 
             st.code(abuse_report, language='text')
             st.markdown("---")
@@ -503,6 +423,7 @@ Country: {c_name}"""
         status_type = "success"
         display_type_text = "Residential / Corporate"
 
+    # תצוגה
     if status_type == "error": st.error(f"**Status:** {final_status}")
     elif status_type == "warning": st.warning(f"**Status:** {final_status}")
     elif status_type == "info": st.info(f"**Status:** {final_status}")
@@ -514,65 +435,29 @@ Country: {c_name}"""
     
     with c3:
         lat, lon = location.get('latitude'), location.get('longitude')
-        if lat is not None and lon is not None:
+        if lat and lon:
             try:
                 m = folium.Map(location=[float(lat), float(lon)], zoom_start=9, tiles="CartoDB dark_matter")
                 folium.Marker([float(lat), float(lon)], icon=folium.Icon(color="red", icon="crosshairs", prefix='fa')).add_to(m)
                 st_folium(m, height=250, use_container_width=True)
-            except Exception as e:
-                st.error(f"Map Error: {e}")
-        else:
-            st.info("📍 No geolocation data available.")
+            except: st.error("Map Error")
 
     with st.expander("🐞 Raw API Data"):
         st.json(vpn_data)
 
 else:
     st.markdown("""
-<style>
-
-[data-testid="stAppViewContainer"] {
-    background-image: url("https://vpnapi.io/assets/img/map.svg");
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
-    background-color: #0e1117;
-}
-
-[data-testid="stHeader"] {
-    background-color: rgba(0,0,0,0);
-}
+    <div style='text-align: center; padding-top: 50px;'>
+        <h1 style='font-size: 60px;'>🛡️</h1>
+        <h1>Trust-IP Intelligence</h1>
+        <br>
+        <div style='background-color: #262730; padding: 20px; border-radius: 10px; border: 1px solid #4F4F4F; display: inline-block; text-align: left;'>
+            <h3>🚀 How to start?</h3>
+            <p>1. Enter an <b>IP Address</b> in the sidebar on the left.</p>
+            <p>2. Hit <b>ENTER</b> or click <b>Analyze IP</b>.</p>
+            <p>3. Get real-time intelligence from multiple global threat feeds.</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
-.info-box {
-    background-color: rgba(14, 17, 23, 0.9);
-    padding: 30px;
-    border-radius: 15px;
-    border: 1px solid #333;
-    box-shadow: 0 0 20px rgba(77, 166, 255, 0.2);
-    max-width: 500px;
-    margin: 15vh auto;
-    text-align: center;
-}
-
-.sources {
-    color: #888;
-    font-size: 14px;
-    margin-top: 15px;
-    letter-spacing: 1px;
-}
-</style>
-
-<div class='info-box'>
-<h1 style='font-size: 60px; margin: 0;'>🛡️</h1>
-<h1 style='margin-top: -10px; font-weight: 800; color: white;'>Trust-IP</h1>
-<div style='margin: 25px 0; font-size: 18px; color: #e0e0e0;'>
-👈 <b>Enter IP</b> in the sidebar to start
-</div>
-<hr style='border-color: #333; margin: 20px 0;'>
-<div class='sources'>
-Get real-time intelligence from multiple global threat feeds.
-</div>
-</div>
-""", unsafe_allow_html=True)
