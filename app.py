@@ -531,7 +531,7 @@ else:
     st.markdown("""
 <style>
 [data-testid="stAppViewContainer"] {
-    background-image: linear-gradient(rgba(14, 17, 23, 0.8), rgba(14, 17, 23, 0.9)), url("https://vpnapi.io/assets/img/map.svg");
+    background-image: linear-gradient(rgba(14, 17, 23, 0.95), rgba(14, 17, 23, 0.95)), url("https://vpnapi.io/assets/img/map.svg");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -563,14 +563,14 @@ else:
 </style>
 
 <div class='info-box'>
-    <h1 style='font-size: 60px; margin: 0;'>🛡️</h1>
-    <h1 style='margin-top: -10px; font-weight: 800; color: white;'>Trust-IP</h1>
-    <div style='margin: 25px 0; font-size: 18px; color: #e0e0e0;'>
-    👈 <b>Enter IP</b> in the sidebar to start
-    </div>
-    <hr style='border-color: #333; margin: 20px 0;'>
-    <div class='sources'>
-    Get real-time intelligence from multiple global threat feeds.
-    </div>
+<h1 style='font-size: 60px; margin: 0;'>🛡️</h1>
+<h1 style='margin-top: -10px; font-weight: 800; color: white;'>Trust-IP</h1>
+<div style='margin: 25px 0; font-size: 18px; color: #e0e0e0;'>
+👈 <b>Enter IP</b> in the sidebar to start
+</div>
+<hr style='border-color: #333; margin: 20px 0;'>
+<div class='sources'>
+Get real-time intelligence from multiple global threat feeds.
+</div>
 </div>
 """, unsafe_allow_html=True)
