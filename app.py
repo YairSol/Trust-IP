@@ -48,7 +48,7 @@ try:
     VT_API_KEY = st.secrets["VT_API_KEY"]
     ABUSE_API_KEY = st.secrets["ABUSE_API_KEY"]
     OTX_API_KEY = st.secrets["OTX_API_KEY"]
-    PROXYCHECK_API_KEY = st.secrets["PROXYCHECK_API_KEY"]
+    VPNAPI_KEY = st.secrets["VPNAPI_KEY"] 
 except Exception:
     st.error("⚠️ API Keys missing! Please configure them in Streamlit Cloud Secrets.")
     st.stop()
@@ -70,32 +70,37 @@ def get_flag_emoji(country_code):
     if not country_code or len(country_code) != 2: return "🌐"
     return "".join(chr(127397 + ord(c.upper())) for c in country_code)
 
-# --- API CLIENT FUNCTIONS ---
+# --- API CLIENT FUNCTIONS (WITH CACHING) ---
 
+@st.cache_data(ttl=3600)
 def get_vt_data(ip):
     url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip}"
     headers = {"x-apikey": VT_API_KEY}
     try: return requests.get(url, headers=headers).json().get('data', {}).get('attributes', {})
     except: return {}
 
+@st.cache_data(ttl=3600)
 def get_vt_resolutions(ip):
     url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip}/resolutions?limit=10"
     headers = {"x-apikey": VT_API_KEY}
     try: return requests.get(url, headers=headers).json().get('data', [])
     except: return []
 
+@st.cache_data(ttl=3600)
 def get_vt_communicating_files(ip):
     url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip}/communicating_files?limit=10"
     headers = {"x-apikey": VT_API_KEY}
     try: return requests.get(url, headers=headers).json().get('data', [])
     except: return []
 
+@st.cache_data(ttl=3600)
 def get_vt_referrers(ip):
     url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip}/referrer_files?limit=10"
     headers = {"x-apikey": VT_API_KEY}
     try: return requests.get(url, headers=headers).json().get('data', [])
     except: return []
 
+@st.cache_data(ttl=3600)
 def get_abuse_data(ip):
     url = 'https://api.abuseipdb.com/api/v2/check'
     params = {'ipAddress': ip, 'maxAgeInDays': '90', 'verbose': True}
@@ -103,14 +108,17 @@ def get_abuse_data(ip):
     try: return requests.get(url, headers=headers, params=params).json().get('data', {})
     except: return {}
 
-def get_proxycheck_data(ip):
-    url = f"http://proxycheck.io/v2/{ip}?key={PROXYCHECK_API_KEY}&vpn=1&asn=1&risk=1&port=1&seen=1&tag=msg&node=1"
+@st.cache_data(ttl=3600)
+def get_vpnapi_data(ip):
+    url = f"https://vpnapi.io/api/{ip}?key={VPNAPI_KEY}"
     try:
-        data = requests.get(url, timeout=5).json()
-        if data.get('status') == 'ok': return data.get(ip, {})
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            return response.json()
     except: return {}
     return {}
 
+@st.cache_data(ttl=3600)
 def get_otx_data(ip):
     url = f"https://otx.alienvault.com/api/v1/indicators/IPv4/{ip}/general"
     headers = {"X-OTX-API-KEY": OTX_API_KEY}
@@ -155,9 +163,10 @@ if submit_btn:
                     future_vt_ref = executor.submit(get_vt_referrers, ip_input)
                     
                     future_abuse = executor.submit(get_abuse_data, ip_input)
-                    future_proxy = executor.submit(get_proxycheck_data, ip_input)
+                    future_vpnapi = executor.submit(get_vpnapi_data, ip_input)
                     future_otx = executor.submit(get_otx_data, ip_input)
-                    
+                    # הוסר: GreyNoise API Call
+
                     vt_res = future_vt.result()
                     vt_resolutions = future_vt_res.result()
                     vt_communicating = future_vt_comm.result()
@@ -165,7 +174,7 @@ if submit_btn:
                     
                     st.write("🌍 Geolocating & Checking Threat Intel...")
                     abuse_res = future_abuse.result()
-                    proxy_res = future_proxy.result()
+                    vpn_res = future_vpnapi.result()
                     otx_res = future_otx.result()
 
                 st.session_state['results'] = {
@@ -175,7 +184,7 @@ if submit_btn:
                     'vt_comm': vt_communicating,
                     'vt_ref': vt_referrers,
                     'abuse': abuse_res,
-                    'proxy': proxy_res,
+                    'vpnapi': vpn_res,
                     'otx': otx_res
                 }
                 
@@ -186,7 +195,7 @@ if st.session_state['results']:
     res = st.session_state['results']
     vt = res['vt']
     abuse = res['abuse']
-    proxy_data = res['proxy']
+    vpn_data = res.get('vpnapi', {})
     otx = res['otx']
     current_ip = res['ip']
 
@@ -195,16 +204,33 @@ if st.session_state['results']:
     
     vt_score = vt.get('last_analysis_stats', {}).get('malicious', 0)
     abuse_score = abuse.get('abuseConfidenceScore', 0)
-    country = proxy_data.get('country', abuse.get('countryName', 'Unknown'))
-    flag = get_flag_emoji(abuse.get('countryCode'))
+    
+    location_data = vpn_data.get('location', {})
+    country = location_data.get('country', abuse.get('countryName', 'Unknown'))
+    flag = get_flag_emoji(location_data.get('country_code', abuse.get('countryCode')))
     
     m1, m2, m3 = st.columns(3)
     m1.metric("VT Detections", f"{vt_score}", delta="Vendors", delta_color="inverse" if vt_score > 0 else "normal")
     m2.metric("Abuse Score", f"{abuse_score}%", delta="Confidence", delta_color="inverse" if abuse_score > 0 else "normal")
     m3.metric("Location", country, delta=flag)
+    st.markdown("---")
+    
+    # Tool buttons row 1
+    c1, c2, c3, c4 = st.columns(4)
+    with c1: st.link_button("🦠 VirusTotal", f"https://www.virustotal.com/gui/ip-address/{current_ip}", use_container_width=True)
+    with c2: st.link_button("⚠️ AbuseIPDB", f"https://www.abuseipdb.com/check/{current_ip}", use_container_width=True)
+    with c3: st.link_button("🔍 Talos Intel", f"https://talosintelligence.com/reputation_center/lookup?search={current_ip}", use_container_width=True)
+    with c4: st.link_button("🚓 CriminalIP", f"https://www.criminalip.io/asset/report/{current_ip}", use_container_width=True)
+
+    # Tool buttons row 2
+    c5, c6, c7, c8 = st.columns(4)
+    with c5: st.link_button("📌 IPinfo", f"https://ipinfo.io/{current_ip}", use_container_width=True)
+    with c6: st.link_button("🌐 Censys", f"https://search.censys.io/hosts/{current_ip}", use_container_width=True)
+    with c7: st.link_button("👻 GreyNoise", f"https://viz.greynoise.io/ip/{current_ip}", use_container_width=True)
+    with c8: st.link_button("👽 OTX AlienVault", f"https://otx.alienvault.com/indicator/ip/{current_ip}", use_container_width=True)
     
     st.markdown("---")
-
+    
     # --- MAIN COLUMNS ---
     col_vt, col_abuse = st.columns([1, 1])
 
@@ -295,10 +321,21 @@ if st.session_state['results']:
     with col_abuse:
         st.subheader("⚠️ AbuseIPDB Intelligence")
         if abuse:
-            st.markdown(f"**Total Reports:** {abuse.get('totalReports', 0)}")
-            st.markdown(f"**ISP:** {abuse.get('isp', 'N/A')}")
-            st.markdown(f"**Usage Type:** {abuse.get('usageType', 'N/A')}")
-            st.markdown(f"**Domain:** {abuse.get('domain', 'N/A')}")
+            c_name = abuse.get('countryName') or 'N/A'
+            city_name = vpn_data.get('location', {}).get('city') or 'Unknown'
+            
+            abuse_report = f"""DB Results:
+IP: {current_ip}
+Abuse Score: {abuse_score}%
+Total Reports: {abuse.get('totalReports', 0)}
+ISP: {abuse.get('isp', 'N/A')}
+Usage Type: {abuse.get('usageType', 'N/A')}
+Domain: {abuse.get('domain', 'N/A')}
+Country: {c_name}
+City: {city_name}"""
+
+            st.code(abuse_report, language='text')
+            st.markdown("---")
             
             with st.expander("💬 View Community Reports"):
                 reports = abuse.get('reports', [])
@@ -309,20 +346,6 @@ if st.session_state['results']:
                         st.markdown("---")
                 else:
                     st.write("No community reports available.")
-            
-            st.markdown("---")
-            c_name = abuse.get('countryName') or 'N/A'
-            
-            abuse_report = f"""DB Results:
-IP: {current_ip}
-Abuse Score: {abuse_score}%
-Total Reports: {abuse.get('totalReports', 0)}
-ISP: {abuse.get('isp', 'N/A')}
-Usage Type: {abuse.get('usageType', 'N/A')}
-Domain: {abuse.get('domain', 'N/A')}
-Country: {c_name}"""
-
-            st.code(abuse_report, language='text')
         else:
             st.warning("No Data from AbuseIPDB")
 
@@ -342,64 +365,66 @@ Country: {c_name}"""
     st.markdown("---")
     st.subheader("🕵️ Connectivity & Geo-Location")
     
-    raw_op = proxy_data.get('operator')
-    if isinstance(raw_op, dict):
-        clean_company = raw_op.get('name', 'Unknown')
-    elif isinstance(raw_op, str):
-        clean_company = raw_op
-    else:
-        clean_company = proxy_data.get('provider') or abuse.get('isp') or "Unknown"
+    security = vpn_data.get('security', {})
+    network = vpn_data.get('network', {})
+    location = vpn_data.get('location', {})
+    
+    clean_company = network.get('autonomous_system_organization') or abuse.get('isp') or "Unknown"
 
-    # 2. Smart Logic: Whitelist
+    # Boolean Flags
+    is_vpn = security.get('vpn', False)
+    is_proxy = security.get('proxy', False)
+    is_tor = security.get('tor', False)
+    is_relay = security.get('relay', False)
+
+    # 1. Big Tech Whitelist
     safe_providers = [
         'Microsoft', 'Google', 'Amazon', 'AWS', 'Cloudflare', 'Akamai', 
-        'Facebook', 'Meta', 'Oracle', 'IBM', 'Alibaba', 'Salesforce', 
-        'Fastly', 'Apple'
+        'Facebook', 'Meta', 'Oracle', 'IBM', 'Alibaba', 'Salesforce', 'Apple'
     ]
     is_big_tech = any(tech.lower() in str(clean_company).lower() for tech in safe_providers)
 
-    # 3. VPN Brand Detection
-    vpn_brands = [
-        'Proton', 'Nord', 'ExpressVPN', 'Mullvad', 'CyberGhost', 'Surfshark', 
-        'PureVPN', 'HMA', 'PrivateInternetAccess', 'ZenMate', 'IPVanish', 
-        'Windscribe', 'TunnelBear', 'Hotspot Shield'
-    ]
-    is_known_vpn_brand = any(brand.lower() in str(clean_company).lower() for brand in vpn_brands)
-
-    pc_proxy = proxy_data.get('proxy') == 'yes'
-    raw_type = proxy_data.get('type') or 'N/A'
-    abuse_usage = abuse.get('usageType') or ''
-
     final_status = "Clean / Residential"
     status_type = "success"
-    
-    display_type_text = raw_type 
+    display_type_text = "Residential / Corporate"
 
-    if pc_proxy:
-        if "TOR" in raw_type.upper():
-             display_type_text = "Tor Anonymizer"
-        elif "Compromised" in raw_type:
-             display_type_text = "Compromised Server"
-        elif any(x in raw_type.upper() for x in ['SOCKS', 'HTTP', 'CONNECT', 'WEB']):
-             display_type_text = "Proxy (Confirmed)"
-        elif is_known_vpn_brand:
-             display_type_text = "VPN (Confirmed)"
-        else:
-             display_type_text = "VPN / Proxy"
+    # --- SMART LOGIC ---
 
     if is_big_tech:
         final_status = f"Cloud Infrastructure ({clean_company})"
-        status_type = "info" 
-        display_type_text = "Cloud / Business"
-        
-    elif pc_proxy:
-        final_status = f"{display_type_text}"
-        status_type = "error" 
-        
-    elif 'Data Center' in abuse_usage or 'Web Hosting' in abuse_usage:
-        final_status = "Data Center Traffic"
-        status_type = "warning" 
+        status_type = "info"
+        display_type_text = "Cloud / Data Center"
 
+    elif is_tor:
+        display_type_text = "Tor Anonymizer"
+        final_status = "Tor Network (High Risk)"
+        status_type = "error"
+        
+    elif is_vpn:
+        display_type_text = "VPN Endpoint"
+        final_status = "Commercial VPN Detected"
+        status_type = "warning"
+        
+    elif is_proxy:
+        display_type_text = "Public Proxy"
+        final_status = "Open Proxy Detected"
+        status_type = "error"
+        
+    elif is_relay:
+        display_type_text = "Apple/Cloud Relay"
+        final_status = "Private Relay (Low Risk)"
+        status_type = "info"
+        
+    elif 'Data Center' in (abuse.get('usageType') or ''):
+        final_status = "Data Center Traffic"
+        status_type = "warning"
+        
+    else:
+        final_status = "Clean / Residential"
+        status_type = "success"
+        display_type_text = "Residential / Corporate"
+
+    # תצוגה
     if status_type == "error": st.error(f"**Status:** {final_status}")
     elif status_type == "warning": st.warning(f"**Status:** {final_status}")
     elif status_type == "info": st.info(f"**Status:** {final_status}")
@@ -410,7 +435,7 @@ Country: {c_name}"""
     with c2: st.write(f"📡 **Type:** {display_type_text}")
     
     with c3:
-        lat, lon = proxy_data.get('latitude'), proxy_data.get('longitude')
+        lat, lon = location.get('latitude'), location.get('longitude')
         if lat and lon:
             try:
                 m = folium.Map(location=[float(lat), float(lon)], zoom_start=9, tiles="CartoDB dark_matter")
@@ -419,7 +444,7 @@ Country: {c_name}"""
             except: st.error("Map Error")
 
     with st.expander("🐞 Raw API Data"):
-        st.json(proxy_data)
+        st.json(vpn_data)
 
 else:
     st.markdown("""
@@ -435,5 +460,3 @@ else:
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-
