@@ -287,8 +287,10 @@ if st.session_state['results']:
     abuse_score = abuse.get('abuseConfidenceScore', 0)
     
     location_data = vpn_data.get('location', {})
-    country = location_data.get('country', abuse.get('countryName', 'Unknown'))
-    flag = get_flag_emoji(location_data.get('country_code', abuse.get('countryCode')))
+    
+    country = abuse.get('countryName') or location_data.get('country', 'Unknown')
+    country_code = abuse.get('countryCode') or location_data.get('country_code')
+    flag = get_flag_emoji(country_code)
     
     m1, m2, m3 = st.columns(3)
     m1.metric("VT Detections", f"{vt_score}", delta="Vendors", delta_color="inverse" if vt_score > 0 else "normal")
@@ -573,3 +575,4 @@ Get real-time intelligence from multiple global threat feeds.
 </div>
 </div>
 """, unsafe_allow_html=True)
+
