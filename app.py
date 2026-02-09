@@ -1,3 +1,9 @@
+# ------------------------------------------------------------------------------
+# Trust-IP Intelligence Tool
+# Copyright (c) 2026 Yair Solomon
+# Licensed under the MIT License.
+# GitHub: https://github.com/YairSol/Trust-IP
+# ------------------------------------------------------------------------------
 import streamlit as st
 import requests
 import datetime
@@ -616,5 +622,6 @@ Get real-time intelligence from multiple global threat feeds.
 </div>
 </div>
 """, unsafe_allow_html=True)
+
 
 
