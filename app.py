@@ -573,7 +573,7 @@ else:
 <style>
 
 [data-testid="stAppViewContainer"] {
-    background-image: linear-gradient(rgba(14, 17, 23, 0.85), rgba(14, 17, 23, 0.85)), url("https://vpnapi.io/assets/img/map.svg");
+    background-image: linear-gradient(rgba(14, 17, 23, 0.85), rgba(14, 17, 23, 0.85)), url("https://raw.githubusercontent.com/YairSol/Trust-IP/4a397f39b4c480aa5f423daab0eb8440aa850b8a/map.svg");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -616,4 +616,5 @@ Get real-time intelligence from multiple global threat feeds.
 </div>
 </div>
 """, unsafe_allow_html=True)
+
 
