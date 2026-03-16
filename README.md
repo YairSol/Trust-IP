@@ -43,7 +43,8 @@ https://github.com/user-attachments/assets/f07d3931-f8f3-41ab-9cef-4416a9b9602f
 You will need API Keys for the following services (some are optional but recommended):
 * VirusTotal
 * AbuseIPDB
-* IPinfo / VPNAPI (for detection)
+* VPNAPI (for detection)
+* OTX (for threat detection)
 
 ### Installation
 
@@ -75,3 +76,4 @@ Create a file named `.streamlit/secrets.toml` in the project directory and add y
 virustotal = "YOUR_VT_KEY"
 abuseipdb = "YOUR_ABUSEIPDB_KEY"
 vpnapi = "YOUR_VPNAPI_KEY"
+OTX = "YOUR_OTX_KEY"
