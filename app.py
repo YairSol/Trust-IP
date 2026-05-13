@@ -229,8 +229,7 @@ def process_single_ip_for_bulk(ip):
     risk_clean = "Low"
     if score > 50: risk_clean = "High"
     elif score > 0: risk_clean = "Medium"
-    elif is_vpn or is_proxy or is_tor: risk_clean = "Suspicious"
-
+    
     risk_ui = "🔴 " + risk_clean if risk_clean == "High" else "🟠 " + risk_clean if risk_clean == "Medium" else "🟡 " + risk_clean if risk_clean == "Suspicious" else "🟢 " + risk_clean
 
     display_type = abuse.get('usageType', 'Unknown')
