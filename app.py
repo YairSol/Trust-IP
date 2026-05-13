@@ -335,7 +335,7 @@ if operation_mode == "Bulk Scan":
         display_df = df.drop(columns=['Clean Risk'])
         
         st.dataframe(
-            display_df.style.background_gradient(subset=['Abuse Score'], cmap='Reds'),
+            display_df.style.background_gradient(subset=['Abuse Score'], cmap='RdYlGn_r', vmin=0, vmax=100),
             use_container_width=True,
             hide_index=True
         )
