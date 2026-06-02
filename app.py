@@ -149,7 +149,7 @@ def validate_ip_address(ip):
             return False, "⚠️ Loopback IP (localhost)."
         return True, ""
     except ValueError:
-        return False, "❌ Invalid IPv4 address."
+        return False, "❌ Invalid IP address (IPv4/IPv6)."
 
 def get_flag_emoji(country_code):
     if not country_code or len(country_code) != 2: return "🌐"
@@ -206,9 +206,13 @@ def get_vpnapi_data(ip):
 
 @st.cache_data(ttl=3600)
 def get_otx_data(ip):
-    url = f"https://otx.alienvault.com/api/v1/indicators/IPv4/{ip}/general"
-    headers = {"X-OTX-API-KEY": OTX_API_KEY}
-    try: return requests.get(url, headers=headers, timeout=5).json()
+    try:
+        # OTX requires knowing if it's IPv4 or IPv6 in the URL path
+        ip_version = ipaddress.ip_address(ip).version
+        ip_type = "IPv6" if ip_version == 6 else "IPv4"
+        url = f"https://otx.alienvault.com/api/v1/indicators/{ip_type}/{ip}/general"
+        headers = {"X-OTX-API-KEY": OTX_API_KEY}
+        return requests.get(url, headers=headers, timeout=5).json()
     except: return {}
 
 def process_single_ip_for_bulk(ip):
@@ -258,7 +262,6 @@ if 'bulk_results' not in st.session_state:
 
 # --- SIDEBAR DESIGN ---
 with st.sidebar:
-    # Custom HTML for the logo/button to keep your style
     st.markdown('<button class="step-up" onclick="window.location.reload();">🛡️ Trust-IP Intelligence</button>', unsafe_allow_html=True)
     
     st.markdown("---")
@@ -270,14 +273,14 @@ with st.sidebar:
     if operation_mode == "Single IP":
         with st.form(key='search_form'):
             st.markdown("<div style='margin-bottom: 12px; font-weight: 700; color: #8b949e; font-size: 14px; letter-spacing: 1px;'>ENTER IP ADDRESS:</div>", unsafe_allow_html=True)
-            ip_input_raw = st.text_input("IP Address", placeholder="e.g. 8.8.8.8", label_visibility="collapsed")
+            ip_input_raw = st.text_input("IP Address", placeholder="e.g. 8.8.8.8 or 2001:4860:4860::8888", label_visibility="collapsed")
             submit_btn = st.form_submit_button(label="Analyze IP", type="primary", use_container_width=True)
             ip_input = ip_input_raw.strip()
             
     elif operation_mode == "Bulk Scan":
         with st.form(key='bulk_form'):
             st.markdown("<div style='margin-bottom: 12px; font-weight: 700; color: #8b949e; font-size: 14px; letter-spacing: 1px;'>PASTE LOGS / IPS:</div>", unsafe_allow_html=True)
-            bulk_input_raw = st.text_area("Logs", height=150, placeholder="185.15.2.1\n8.8.8.8\netc...", label_visibility="collapsed")
+            bulk_input_raw = st.text_area("Logs", height=150, placeholder="185.15.2.1\n2001:0db8:85a3::8a2e:0370:7334\netc...", label_visibility="collapsed")
             bulk_submit_btn = st.form_submit_button(label="Run Bulk Scan", type="primary", use_container_width=True)
 
     st.markdown("---")
@@ -292,14 +295,24 @@ if operation_mode == "Bulk Scan":
         if not bulk_input_raw.strip():
             st.warning("⚠️ Please paste some logs or IPs to scan.")
         else:
-            raw_ips = re.findall(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', bulk_input_raw)
+            # Splitting text smartly by common separators instead of strict IPv4 regex
+            raw_tokens = re.split(r'[\s,;\"\'\[\]\(\)<>]+', bulk_input_raw)
             valid_ips = []
-            for ip in set(raw_ips):
-                is_valid, _ = validate_ip_address(ip)
-                if is_valid: valid_ips.append(ip)
+            
+            for token in set(raw_tokens):
+                token = token.strip()
+                if not token: continue
+                
+                # Clean up IPv4 addresses that might have a port attached (e.g. 192.168.1.1:80)
+                if token.count('.') == 3 and token.count(':') == 1:
+                    token = token.split(':')[0]
+                    
+                is_valid, _ = validate_ip_address(token)
+                if is_valid: 
+                    valid_ips.append(token)
             
             if not valid_ips:
-                st.error("❌ No valid public IPv4 addresses found in the text.")
+                st.error("❌ No valid public IPv4/IPv6 addresses found in the text.")
             else:
                 with st.status(f"🚀 Scanning {len(valid_ips)} IPs...", expanded=True) as status:
                     progress_bar = st.progress(0)
@@ -396,15 +409,15 @@ elif operation_mode == "Single IP":
                         future_vpnapi = executor.submit(get_vpnapi_data, ip_input)
                         future_otx = executor.submit(get_otx_data, ip_input)
 
-                        vt_res = future_vt.result()
-                        vt_resolutions = future_vt_res.result()
-                        vt_communicating = future_vt_comm.result()
-                        vt_referrers = future_vt_ref.result()
-                        
-                        st.write("🌍 Geolocating & Checking Threat Intel...")
-                        abuse_res = future_abuse.result()
-                        vpn_res = future_vpnapi.result()
-                        otx_res = future_otx.result()
+                    vt_res = future_vt.result()
+                    vt_resolutions = future_vt_res.result()
+                    vt_communicating = future_vt_comm.result()
+                    vt_referrers = future_vt_ref.result()
+                    
+                    st.write("🌍 Geolocating & Checking Threat Intel...")
+                    abuse_res = future_abuse.result()
+                    vpn_res = future_vpnapi.result()
+                    otx_res = future_otx.result()
 
                 st.session_state['results'] = {
                     'ip': ip_input,
@@ -451,13 +464,13 @@ elif operation_mode == "Single IP":
         with c3: st.link_button("🔍 Talos Intel", f"https://talosintelligence.com/reputation_center/lookup?search={current_ip}", use_container_width=True)
         with c4: st.link_button("🚓 CriminalIP", f"https://www.criminalip.io/asset/report/{current_ip}", use_container_width=True)
 
-        # Tool buttons row 2
+# Tool buttons row 2
         c5, c6, c7, c8 = st.columns(4)
-        with c5: st.link_button("📌 IPinfo", f"https://ipinfo.io/{current_ip}", use_container_width=True)
+        with c5: st.link_button("🎯 Spur", f"https://spur.us/context/{current_ip}", use_container_width=True)
         with c6: st.link_button("🌐 Censys", f"https://search.censys.io/hosts/{current_ip}", use_container_width=True)
-        with c7: st.link_button("👻 GreyNoise", f"https://viz.greynoise.io/ip/{current_ip}", use_container_width=True)
+        with c7: st.link_button("📌 IPinfo", f"https://ipinfo.io/{current_ip}", use_container_width=True)
         with c8: st.link_button("👽 OTX AlienVault", f"https://otx.alienvault.com/indicator/ip/{current_ip}", use_container_width=True)
-        
+
         st.markdown("---")
         
         col_vt, col_abuse = st.columns([1, 1])
