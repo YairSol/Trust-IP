@@ -295,19 +295,20 @@ if operation_mode == "Bulk Scan":
         if not bulk_input_raw.strip():
             st.warning("⚠️ Please paste some logs or IPs to scan.")
         else:
-            # Splitting text smartly by common separators instead of strict IPv4 regex
-            raw_tokens = re.split(r'[\s,;\"\'\[\]\(\)<>]+', bulk_input_raw)
+            raw_tokens = re.findall(r'[a-fA-F0-9\.\:]+', bulk_input_raw)
             valid_ips = []
             
             for token in set(raw_tokens):
-                token = token.strip()
+                token = token.strip('.:') 
                 if not token: continue
                 
-                # Clean up IPv4 addresses that might have a port attached (e.g. 192.168.1.1:80)
-                if token.count('.') == 3 and token.count(':') == 1:
-                    token = token.split(':')[0]
-                    
                 is_valid, _ = validate_ip_address(token)
+                
+                if not is_valid and ':' in token and token.count('.') == 3:
+                    token_no_port = token.split(':')[0]
+                    is_valid, _ = validate_ip_address(token_no_port)
+                    if is_valid: token = token_no_port
+                    
                 if is_valid: 
                     valid_ips.append(token)
             
